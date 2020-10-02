@@ -1,53 +1,53 @@
 import numpy as np
 import cv2
-from sklearn.externals import joblib
-import argparse
+#from sklearn.externals import joblib
+#import sklearn.external.joblib as extjoblib
+#import sklearn.externals
+import joblib
+#import pickle
 # from time import gmtime, strftime
 
 
 def detect_face(img, faceCascade):
-    faces = faceCascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(110, 110)
-        #flags = cv2.CV_HAAR_SCALE_IMAGE
-    )
+    faces = faceCascade.detectMultiScale(img, scaleFactor=1.6, minNeighbors=5, minSize=(110, 110))
+    #flags = cv2.CV_HAAR_SCALE_IMAGE
     return faces
 
 
 def calc_hist(img):
     histogram = [0] * 3
-    for j in range(3):
+    for j in range(3):#range RGB
         histr = cv2.calcHist([img], [j], None, [256], [0, 256])
         histr *= 255.0 / histr.max()
         histogram[j] = histr
     return np.array(histogram)
 
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-n", "--name", required=True, help="name of trained model to perform spoofing detection")
-ap.add_argument("-d", "--device", required=True, help="camera identifier/video to acquire the image")
-ap.add_argument("-t", "--threshold", required=False, help="threshold used for the classifier to decide between genuine and a spoof attack")
-args = vars(ap.parse_args())
+#ap = argparse.ArgumentParser()
+#ap.add_argument("-n", "--name", required=True, help="name of trained model to perform spoofing detection")
+#ap.add_argument("-d", "--device", required=True, help="camera identifier/video to acquire the image")
+#ap.add_argument("-t", "--threshold", required=False, help="threshold used for the classifier to decide between genuine and a spoof attack")
+#args = vars(ap.parse_args())
 
 if __name__ == "__main__":
 
     # # Load model
     clf = None
     try:
-        clf = joblib.load(args["name"])
+        clf = joblib.load('print-attack.pkl')
     except IOError as e:
-        print "Error loading model <"+args["name"]+">: {0}".format(e.strerror)
+        #print("Error loading model <"+args["name"]+">: {0}".format(e.strerror))
         exit(0)
 
     # # Open the camera
-    if '.' in args["device"]:
-        cap = cv2.VideoCapture(args["device"])
-    else:
-        cap = cv2.VideoCapture(int(args["device"]))
+    cap = cv2.VideoCapture(0)
+        
     if not cap.isOpened():
-        print "Error opening camera"
+        print("Error opening camera")
         exit(0)
 
-    width = 320
-    height = 240
+    width = 1024
+    height = 768
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
     # cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
@@ -63,13 +63,10 @@ if __name__ == "__main__":
     while True:
         ret, img_bgr = cap.read()
         if ret is False:
-            print "Error grabbing frame from camera"
+            print("Error grabbing frame from camera")
             break
-
         img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-
         faces = detect_face(img_gray, faceCascade)
-
         measures[count%sample_number]=0
 
         point = (0,0)
@@ -95,10 +92,10 @@ if __name__ == "__main__":
 
             point = (x, y-5)
 
-            print measures, np.mean(measures)
+            print(measures, np.mean(measures))
             if 0 not in measures:
                 text = "True"
-                if np.mean(measures) >= 0.7:
+                if np.mean(measures) > 0.1:
                     text = "False"
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     cv2.putText(img=img_bgr, text=text, org=point, fontFace=font, fontScale=0.9, color=(0, 0, 255),
@@ -107,6 +104,11 @@ if __name__ == "__main__":
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     cv2.putText(img=img_bgr, text=text, org=point, fontFace=font, fontScale=0.9,
                                 color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
+            else:
+                text = "True"
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(img=img_bgr, text=text, org=point, fontFace=font, fontScale=0.9,
+                            color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
 
         count+=1
         cv2.imshow('img_rgb', img_bgr)
